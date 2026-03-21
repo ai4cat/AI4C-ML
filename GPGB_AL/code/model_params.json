@@ -1,0 +1,210 @@
+{
+    "lasso": {
+        "alpha": 0.01
+    },
+    "ridge": {
+        "alpha": 0.2
+    },
+    "esnet": {
+        "alpha": 0.41,
+        "l1_ratio": 0.02439
+    },
+    "svr": {
+        "kernel": "rbf",
+        "C": 5,
+        "gamma": 0.1
+    },
+    "rf": {
+        "n_estimators": 100,
+        "max_depth": 15,
+        "random_state": 3
+    },
+    "gpr": {
+        "WhiteKernel": 0.05,
+        "ConstantKernel": 1,
+        "Kernel": "DotProduct",
+        "kernel_params": {
+            "sigma_0": 0.5
+        }
+    },
+    "ann_1": {
+        "dims": [
+            20,
+            12,
+            8,
+            4,
+            1
+        ],
+        "learning_rate": 0.005,
+        "activation": "Tanh",
+        "batch_size": 1,
+        "epoch": 799,
+        "random_state": 165
+    },
+    "ann_2": {
+        "dims": [
+            20,
+            32,
+            64,
+            32,
+            16,
+            8,
+            1
+        ],
+        "learning_rate": 0.005,
+        "activation": "Tanh",
+        "batch_size": 4,
+        "epoch": 20,
+        "random_state": 102
+    },
+    "ann_3_raw": {
+        "dims": [
+            20,
+            8,
+            4,
+            1
+        ],
+        "learning_rate": 0.0001,
+        "activation": "LeakyReLU",
+        "batch_size": 4,
+        "epoch": 5001,
+        "random_state": 231
+    },
+    "ann_3": {
+        "dims": [
+            11,
+            8,
+            4,
+            1
+        ],
+        "name": "ann+gp",
+        "learning_rate": 0.0001,
+        "activation": "LeakyReLU",
+        "batch_size": 4,
+        "epoch": 50001,
+        "random_state": 231
+    },
+    "xgboost-Ni1": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "learning_rate": 2500,
+        "random_state": 850
+    },"xgboost2-Ni1": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "n_components": 11,
+        "learning_rate": 2500,
+        "random_state": 850,
+        "gp_random_state": 58989
+    },
+    "xgboost-Mn1": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "learning_rate": 2500,
+        "random_state": 30995
+    },"xgboost2-Mn1": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "n_components": 11,
+        "learning_rate": 2500,
+        "random_state": 30995,
+        "gp_random_state": 30059
+    },
+    "xgboost-Ir1": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "learning_rate": 2500,
+        "random_state": 22043
+    },"xgboost2-Ir1": {
+        "max_depth": 4,
+        "n_estimators": 36,
+        "n_components": 11,
+        "learning_rate": 2750,
+        "random_state": 22043,
+        "gp_random_state": 342161
+    },
+    "xgboost-Ni2": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "learning_rate": 2500,
+        "random_state": 26951
+    },"xgboost2-Ni2": {
+        "max_depth": 4,
+        "n_estimators": 35,
+        "n_components": 11,
+        "learning_rate": 2710,
+        "random_state": 26951,
+        "gp_random_state": 7599
+    },
+    "xgboost-Ti1": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "learning_rate": 2500,
+        "random_state": 40806
+    },"xgboost2-Ti1": {
+        "max_depth": 4,
+        "n_estimators": 35,
+        "n_components": 11,
+        "learning_rate": 2490,
+        "random_state": 40806,
+        "gp_random_state": 16962
+    },
+    "xgboost-Fe": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "learning_rate": 2500,
+        "random_state": 40453
+    },"xgboost2-Fe": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "n_components": 11,
+        "learning_rate": 2500,
+        "random_state": 40453,
+        "gp_random_state": 6590
+    },
+    "xgboost-CU1": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "learning_rate": 2500,
+        "random_state": 13725
+    },"xgboost2-Cu1": {
+        "max_depth": 4,
+        "n_estimators": 35,
+        "n_components": 11,
+        "learning_rate": 2780,
+        "random_state": 13725,
+        "gp_random_state": 11131
+    },
+    "xgboost-Ni3": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "learning_rate": 2500,
+        "random_state": 78476
+    },"xgboost2-Ni3": {
+        "max_depth": 4,
+        "n_estimators": 35,
+        "n_components": 11,
+        "learning_rate": 2580,
+        "random_state": 78476,
+        "gp_random_state": 1466
+    },
+    "xgboost": {
+        "max_depth": 4,
+        "n_estimators": 40,
+        "learning_rate": 2500,
+        "random_state": 42931
+    },"gpgb": {
+        "max_depth": 4,
+        "n_estimators": 39,
+        "n_components": 11,
+        "learning_rate": 2496,
+        "random_state": 42931,
+        "gp_random_state": 292228
+    }
+}
+
+
+
+
+
+
