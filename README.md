@@ -5,15 +5,17 @@ This repository provides machine learning workflows for atomically dispersed cat
 ## Installation
 ### Development Environment
 Python 3.13
+
 Validated on Linux/Windows OS
+
 Use `conda env create -f mltrain.yml` to create the enviornment.
 
 ### Setup
 To set up the codes, run the following commands:
-`bash
+```bash
 https://github.com/ai4cat/AI4C-ML.git
 cd AI4C-ML
-`
+```
 
 ## Repository Structure
 
@@ -51,7 +53,6 @@ Machine learning models for reaction barrier prediction.
 - Integration of structure generation, performance prediction, and stability evaluation  
 - Designed for high-throughput and data-driven catalyst screening  
 
----
 
 ## **License**
 
