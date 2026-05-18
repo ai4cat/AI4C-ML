@@ -56,4 +56,4 @@ Machine learning models for reaction barrier prediction.
 
 ## **License**
 
-This project is licensed under the [CC-BY-ND-NC License](https://github.com/ai4cat/AI4C-ML/blob/main/LICENSE). Please see the LICENSE file for more details.
+This project is licensed under the [Apache License 2.0](https://github.com/ai4cat/AI4C-ML/blob/main/LICENSE). Please see the LICENSE file for more details.
