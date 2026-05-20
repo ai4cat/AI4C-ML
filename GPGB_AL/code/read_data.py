@@ -31,7 +31,7 @@ class AADataset(Dataset):
 
 class DataProcessor():
     def __init__(self, seed=0) -> None:
-        self.data_file = '/home/a/PKU/PKU240918/code_data/task_data/base_model_data_Ni1_Mn1_Ir1_Ni2_Ti1_Fe1_Cu1_Ni3.xlsx'
+        self.data_file = '/media/sf_Projects/ORR/GPGB/data/2_base_model_data_Ni1.xlsx'
         self.labeled_data_sheet = 'DATA'
         self.data_x = []
         self.data_y = []

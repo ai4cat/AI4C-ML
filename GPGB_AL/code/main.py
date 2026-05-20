@@ -463,7 +463,7 @@ def xgboost(train_x, test_x,best_parameters,random_seed):
               metrics.mean_absolute_error(y_test, y_test_predict))
         print("MSE train_score,test_score:", metrics.mean_squared_error(y_train, y_train_predict),
               metrics.mean_squared_error(y_test, y_test_predict))
-        # print("xgboost特征重要性：", model.feature_importances_)
+        # print("XGBoost feature importance:", model.feature_importances_)
         print("......................")
         if False:
             import pandas
@@ -535,17 +535,17 @@ def gpgb(train_x, test_x,exp_x_name,exp_x,best_parameters,n_component,gp_adjust_
     if args.enable_active_learning:
         # all decision tree
         pred_contribs = model.get_booster().predict(xgb.DMatrix(np.array(modify_exp_predict)), pred_contribs=True)
-        # 计算每个样本的最终预测（每行是一个样本，每列是一个树的贡献，除最后一列外，它是偏置项）
+        # Calculate the final prediction for each sample. Each row is a sample, each column is a tree contribution, and the last column is the bias term.
         final_predictions = np.sum(pred_contribs, axis=1)
-        # 计算所有树的预测结果（不包括偏置项的贡献）
+        # Calculate predictions from all trees, excluding the bias contribution.
         predictions_per_tree = pred_contribs[:, :-1]
-        # 计算方差
+        # Calculate variance.
         variances = np.var(predictions_per_tree, axis=1)
         # std_devs = np.sqrt(variances)
-        # print("每个样本的预测方差:", len(variances),variances[:5])
-        # print("每个样本的预测标准差:", len(std_devs),std_devs[:5])
+        # print("Prediction variance for each sample:", len(variances),variances[:5])
+        # print("Prediction standard deviation for each sample:", len(std_devs),std_devs[:5])
         if  (0.84<test_r2 ) :
-        #     print("特征重要性：",model.feature_importances_)
+        #     print("Feature importance:",model.feature_importances_)
             print("Train R-square:", train_r2)
             print("Test R-square:", test_r2)
             print("Train MAE:", metrics.mean_absolute_error(y_train, y_train_predict))
@@ -558,12 +558,13 @@ def gpgb(train_x, test_x,exp_x_name,exp_x,best_parameters,n_component,gp_adjust_
     if  args.search_optimal_validation_data:
         exp_predict = model.predict(modify_exp_predict)
         # higner_rank_name = []
-        if   test_r2 > 0.85:
+        #if   test_r2 > 0.85:
+        if True:
             print("R2 train_score,test_score: ", train_r2, test_r2)
             print("MAE  train_score,test_score:", metrics.mean_absolute_error(y_train, y_train_predict), metrics.mean_absolute_error(y_test, y_test_predict))
             print("MSE train_score,test_score:", metrics.mean_squared_error(y_train, y_train_predict),metrics.mean_squared_error(y_test, y_test_predict))
             # print("gplearning model:", modify_model)
-            # print("gpgb特征重要性：", model.feature_importances_
+            # print("gpgbFeature importance:", model.feature_importances_
             import pandas
             # predict data
             if True:
@@ -611,7 +612,7 @@ def gpgb(train_x, test_x,exp_x_name,exp_x,best_parameters,n_component,gp_adjust_
                     # print(z_predict)
                     data_lie_all.append([z_predict[0]]+list(data[2:26])+list(z_data[0]))
                 # print("data_lie_all:",data_lie_all)
-                all_value = pandas.DataFrame(data_lie_all,columns=['Predict Value','model序号','中心金属','数据库编号' ,'EXP Value','X0', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8', 'X9', 'X10', 'X11', 'X12', 'X13', 'X14', 'X15', 'X16', 'X17', 'X18', 'X19',
+                all_value = pandas.DataFrame(data_lie_all,columns=['Predict Value','Model Order','Central Metal','Database ID' ,'EXP Value','X0', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8', 'X9', 'X10', 'X11', 'X12', 'X13', 'X14', 'X15', 'X16', 'X17', 'X18', 'X19',
                                                                    'Z0','Z1', 'Z2', 'Z3','Z4','Z5','Z6','Z7','Z8','Z9','Z10'])
                 all_value.to_excel('Feature_Importance.xlsx',sheet_name='data', index=False)
 
@@ -624,9 +625,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--model', type=str, default='gpgb')  # [ols, lasso, ridge, svr, rf, gpr, ann_1, ann_2, ann_3,xgboost,gpgb]
     parser.add_argument('--output_dir', type=str, default='data/results')
-    parser.add_argument('--model_params', type=str, default='data/model_params.json')
-    parser.add_argument('--train_data_num', type=int, default=228)
-    parser.add_argument('--data_lib_path', type=str, default='/home/a/PKU/PKU240918/code/data/20260308/model_doubleZnCe_add_Ce.xlsx')
+    parser.add_argument('--model_params', type=str, default='/media/sf_Projects/ORR/GPGB/model_params.json')
+    parser.add_argument('--train_data_num', type=int, default=200)
+    parser.add_argument('--data_lib_path', type=str, default='/media/sf_Projects/ORR/GPGB/data/Data_collect_Ti.xlsx')
     parser.add_argument('--search_optimal_validation_data', type=bool, default=True)
     parser.add_argument('--enable_active_learning', type=bool, default=False)
 
@@ -688,8 +689,8 @@ if __name__ == "__main__":
         if args.search_optimal_validation_data or args.enable_active_learning:
             data_array = pl.read_excel(
                 args.data_lib_path, sheet_name='DATA')
-            # 2. 过滤掉包含任何空值的行（核心操作）
-            # drop_nulls() 默认删除包含任意空值的行，等价于how="any"
+            # 2. Remove rows containing any null values.
+            # By default, drop_nulls() removes rows containing any null value, equivalent to how="any".
             data_array = data_array.drop_nulls()
             for row_index in range(0,data_array.shape[0]):
                 data=data_array[row_index].to_numpy()[0]

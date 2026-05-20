@@ -1,58 +1,103 @@
 import pandas as pd
 
-# 读取Excel文件
-# file1_path = 'D:/PKU\PKU240918/code_data/task_data/3.DFT_select-for_trainning.xlsx'
+# File paths
+file1_path = "/media/sf_Projects/ORR/GPGB/data/base_model_data.xlsx"
+file2_path = "/media/sf_Projects/ORR/GPGB/data/acitve_learning_data.xlsx"
+file3_path = "/media/sf_Projects/ORR/GPGB/data/Predict_model_Ce_processed_0308_rank_Z0_Z10.xlsx"
 
-file1_path = '/home/a/PKU/PKU240918/code_data/task_data/base_model_data.xlsx'
-file2_path = '/home/a/PKU/PKU240918/code_data/task_data/acitve_learning_data.xlsx'
-file3_path = '/home/a/PKU/PKU240918/code_data/task_data/prediction_data.xlsx'
-skiprows=1
+# Number of rows to skip when reading Excel files
+skiprows = 1
 
-df1 = pd.read_excel(file1_path,skiprows=skiprows)
-df2 = pd.read_excel(file2_path,skiprows=skiprows)
-df3 = pd.read_excel(file3_path,skiprows=skiprows)
-# 处理跳过的行
-index_skip_rows=3
+# Row offset used to match the original Excel row numbers
+row_offset = 3
 
-# 分割数据并检查每部分数据的指定行范围是否存在重复
-part1 = df1.iloc[:,5:25]
-part2 = df2.iloc[ :,5:25]
-part3 = df3.iloc[ :,5:25]
-print("原始数据个数: ",len(part1))
-# print("原始数据0: ",part1.iloc[0])
-print("主动学习个数: ",len(part2))
-# print("主动学习0: ",part2.iloc[0])
-print("预测个数: ",len(part3))
-# print("预测0: ",part3.iloc[0])
+# Read Excel files
+df1 = pd.read_excel(file1_path, skiprows=skiprows)
+df2 = pd.read_excel(file2_path, skiprows=skiprows)
+df3 = pd.read_excel(file3_path, skiprows=skiprows)
 
-# 检查重复行并打印行号
-def find_duplicates(a,a_index,b,b_index):
-    for i in range(len(a)):
-        for j in range(len(b)):
-            if a.iloc[i].equals(b.iloc[j]):
-                print(f"重复序号: 第 {a_index[i]+index_skip_rows} 行和第 {b_index[j]+index_skip_rows} 行")
-# 比较各部分
-print("检查第一部分和第二部分：")
-find_duplicates(part1,df1.index, part2,df2.index)
-print("检查第一部分和第三部分：")
-find_duplicates(part1,df1.index, part3,df3.index)
-print("检查第二部分和第三部分：")
-find_duplicates(part2,df2.index, part3,df3.index)
+# Select descriptor columns for duplicate checking
+part1 = df1.iloc[:, 5:25]
+part2 = df2.iloc[:, 5:25]
+part3 = df3.iloc[:, 5:25]
+
+print("Number of base model data:", len(part1))
+print("Number of active learning data:", len(part2))
+print("Number of prediction data:", len(part3))
+
+# Convert each row into a hash value for fast duplicate checking
+def get_row_hash(df):
+    return pd.util.hash_pandas_object(df, index=False)
 
 
-# 检查重复行并打印行号
-def find_column_duplicates(df):
-    for i in range(len(df)):
-        for j in range(i + 1, len(df)):
-            if df.iloc[i, :].equals(df.iloc[j, :]):
-                print(f"重复序号: 第 {df.index[i]+index_skip_rows} 行和第 {df.index[j]+index_skip_rows} 行重复")
+# Check duplicate rows between two datasets
+def find_duplicates(a, a_index, b, b_index):
+    a_hash = get_row_hash(a)
+    b_hash = get_row_hash(b)
 
-# 执行检查
-print("第一部分自查：")
-find_column_duplicates(df1)
-# 执行检查
-print("第二部分自查：")
-find_column_duplicates(df2)
-# 执行检查
-print("第三部分自查：")
-find_column_duplicates(df3)
+    # Build a mapping from hash value to Excel row numbers in dataset b
+    b_hash_to_rows = {}
+
+    for j, h in enumerate(b_hash):
+        if h not in b_hash_to_rows:
+            b_hash_to_rows[h] = []
+        b_hash_to_rows[h].append(b_index[j] + row_offset)
+
+    # Check whether rows in dataset a appear in dataset b
+    found = False
+
+    for i, h in enumerate(a_hash):
+        if h in b_hash_to_rows:
+            found = True
+            for b_row in b_hash_to_rows[h]:
+                print(
+                    f"Duplicate found: row {a_index[i] + row_offset} "
+                    f"and row {b_row}"
+                )
+
+    if not found:
+        print("No duplicate rows found.")
+
+
+# Check duplicate rows within one dataset
+def find_internal_duplicates(df):
+    row_hash = get_row_hash(df)
+
+    duplicated_mask = row_hash.duplicated(keep=False)
+
+    if not duplicated_mask.any():
+        print("No duplicate rows found.")
+        return
+
+    duplicated_hash = row_hash[duplicated_mask]
+
+    # Group duplicated rows by hash value
+    hash_to_rows = {}
+
+    for idx, h in duplicated_hash.items():
+        if h not in hash_to_rows:
+            hash_to_rows[h] = []
+        hash_to_rows[h].append(idx + row_offset)
+
+    for rows in hash_to_rows.values():
+        if len(rows) > 1:
+            print(f"Duplicate rows found: {rows}")
+
+
+print("\nChecking base model data vs active learning data...")
+find_duplicates(part1, df1.index, part2, df2.index)
+
+print("\nChecking base model data vs prediction data...")
+find_duplicates(part1, df1.index, part3, df3.index)
+
+print("\nChecking active learning data vs prediction data...")
+find_duplicates(part2, df2.index, part3, df3.index)
+
+print("\nChecking duplicates within base model data...")
+find_internal_duplicates(part1)
+
+print("\nChecking duplicates within active learning data...")
+find_internal_duplicates(part2)
+
+print("\nChecking duplicates within prediction data...")
+find_internal_duplicates(part3)
