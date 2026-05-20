@@ -258,6 +258,23 @@ Recommended checks before running the workflows:
 
 ---
 
+## Contributing
+Contributions are welcome! Please follow the standard fork-and-pull request workflow on GitHub.
+
+If you use our code in your research, please cite our paper:
+```bash
+@article{,
+  title={s},
+  author={},
+  journal={},
+  year={},
+  volume = {},
+  pages = {}
+}
+```
+
+---
+
 ## License
 
 This project is licensed under the [Apache License 2.0](https://github.com/ai4cat/AI4C-ML/blob/main/LICENSE).
