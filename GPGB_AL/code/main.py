@@ -27,6 +27,20 @@ def setup_seed(seed):
     torch.backends.cudnn.deterministic = True
 
 
+def parse_bool(value):
+    """Parse command-line booleans without treating every non-empty string as True."""
+    if isinstance(value, bool):
+        return value
+    normalized = value.strip().lower()
+    if normalized in {'true', '1', 'yes', 'y', 'on'}:
+        return True
+    if normalized in {'false', '0', 'no', 'n', 'off'}:
+        return False
+    raise argparse.ArgumentTypeError(
+        "Expected a boolean value: true/false, 1/0, yes/no, or on/off."
+    )
+
+
 # NN regressor
 class NNRegressor(torch.nn.Module):
     def __init__(self, dims, activation=torch.nn.ReLU(), last_act=None):
@@ -166,7 +180,7 @@ def grid_search_linear(train_dataset_all, test_dataset):
                     l1_weight, l2_weight, alpha, l1_ratio)
 
             records[model_name] = train_ml_model(
-                train_dataset_all, test_dataset, model=linear_model)
+                train_dataset_all, test_dataset, model=linear_model)[0]
 
     output_performance(records)
 
@@ -208,29 +222,33 @@ def grid_search_gpr(train_dataset_all, test_dataset):
         model = GaussianProcessRegressor(kernel=kernels[i], random_state=0)
         try:
             records[kernel_names[i]] = train_ml_model(
-                train_dataset_all, test_dataset, model)
+                train_dataset_all, test_dataset, model=model)[0]
         except Exception:
             continue
     output_performance(records)
 
 
 def output_performance(records):
-    best_model_val = sorted(records.items(), key=lambda x: x[1]['mse_val_p'])
-    best_model_test = sorted(records.items(), key=lambda x: x[1]['mse_test_p'])
-    best_model_train = sorted(
-        records.items(), key=lambda x: x[1]['mse_train_p'])
-    for item in best_model_val:
-        print('model_name: {}, mse_train: {}, mse_train_p: {}, mse_val: {}, mse_val_p: {}, mse_test: {}, mse_test_p:{}, mse_val_std: {}, mse_val_std_p: {}'.format(
-            item[0],
-            item[1]['mse_train'],
-            item[1]['mse_train_p'],
-            item[1]['mse_val'],
-            item[1]['mse_val_p'],
-            item[1]['mse_test'],
-            item[1]['mse_test_p'],
-            item[1]['mse_val_std'],
-            item[1]['mse_val_std_p']
-        )),
+    if not records:
+        print('No model results were available for comparison.')
+        return
+
+    # The classical baseline functions return train/test metrics only.  Do not
+    # read the unrelated mse_val* fields used by an older ANN result structure;
+    # doing so caused KeyError and could silently discard GPR grid-search runs.
+    ranked_records = sorted(
+        records.items(), key=lambda item: item[1]['mse_test_p'])
+    for model_name, result in ranked_records:
+        print(
+            'model_name: {}, mse_train: {}, mse_train_p: {}, '
+            'mse_test: {}, mse_test_p: {}'.format(
+                model_name,
+                result['mse_train'],
+                result['mse_train_p'],
+                result['mse_test'],
+                result['mse_test_p'],
+            )
+        )
 
 
 def grid_search_rf(train_dataset_all, test_dataset):
@@ -241,7 +259,7 @@ def grid_search_rf(train_dataset_all, test_dataset):
                 n_estimators=n_estimators, max_depth=max_depth, random_state=3)
             model_name = 'n:{}-depth:{}'.format(n_estimators, max_depth)
             records[model_name] = train_ml_model(
-                train_dataset_all, test_dataset, model=rf_model)
+                train_dataset_all, test_dataset, model=rf_model)[0]
     output_performance(records)
 
 
@@ -256,7 +274,7 @@ def grid_search_svr(train_dataset_all, test_dataset):
                     model = SVR(kernel=kernel)
                 model_name = '{}-{}-{}'.format(kernel, c, gamma)
                 records[model_name] = train_ml_model(
-                    train_dataset_all, test_dataset, model=model)
+                    train_dataset_all, test_dataset, model=model)[0]
     output_performance(records)
 
 def train_ann(dims, lr, batch_size, activation, epoch, train_dataset_all, seed):
@@ -392,7 +410,7 @@ def grid_search_gbdt(train_dataset_all, test_dataset):
                 model_name = 'n:{}-depth:{}-lr:{}'.format(
                     n_estimators, max_depth, learning_rate)
                 records[model_name] = train_ml_model(
-                    train_dataset_all, test_dataset, gbdt_model)
+                    train_dataset_all, test_dataset, model=gbdt_model)[0]
 
     output_performance(records)
 
@@ -632,8 +650,11 @@ if __name__ == "__main__":
     parser.add_argument('--model_params', type=str, default='/media/sf_Projects/ORR/GPGB/model_params.json')
     parser.add_argument('--train_data_num', type=int, default=200)
     parser.add_argument('--data_lib_path', type=str, default='/media/sf_Projects/ORR/GPGB/data/Data_collect_Ti.xlsx')
-    parser.add_argument('--search_optimal_validation_data', type=bool, default=True)
-    parser.add_argument('--enable_active_learning', type=bool, default=False)
+    # argparse treats every non-empty string as True when type=bool is used.
+    # Use an explicit parser so '--enable_active_learning false' really disables
+    # the branch. Confirm the intended setting before each local run.
+    parser.add_argument('--search_optimal_validation_data', type=parse_bool, default=True)
+    parser.add_argument('--enable_active_learning', type=parse_bool, default=False)
 
 
     args = parser.parse_args()
@@ -694,26 +715,46 @@ if __name__ == "__main__":
             data_array = pl.read_excel(
                 args.data_lib_path, sheet_name='DATA')
             # IMPORTANT: data_lib_path is a candidate/prediction table, not
-            # the labeled training table read by DataProcessor.  Its current
-            # expected layout is [candidate name, order/metadata, X0 ... X19].
-            # Future candidate files may add metal labels, Y, source-file
-            # fields, or other columns.  Therefore, inspect the actual header
-            # and update these two mappings for each new file format:
-            #   data_lib_name  <- candidate identifier columns
-            #   data_lib_value <- exactly the 20 descriptor columns X0 ... X19
-            # Never pass Y, an ID, or another metadata column as a descriptor.
-            # Do not copy the training-table mapping here unless the schemas
-            # have been explicitly confirmed to be identical.
-            # 2. Remove rows containing any null values.
-            # By default, drop_nulls() removes rows containing any null value, equivalent to how="any".
-            data_array = data_array.drop_nulls()
-            for row_index in range(0,data_array.shape[0]):
-                data=data_array[row_index].to_numpy()[0]
-                # if row_index <3:
-                    # print(data[0:2])
-                    # print(data[2:22])
-                data_lib_name.append(data[0:2])
-                data_lib_value.append(data[2:22])
+            # the labeled training table read by DataProcessor.  The currently
+            # published table places the fields as [Center metal,
+            # Database number, Y, X0 ... X19, ...].  The target Y is not an
+            # input feature and must never be included in data_lib_value.
+            #
+            # Future candidate files may use a different number or order of
+            # metadata columns. Before each new run, inspect the actual header
+            # and update candidate_id_col, candidate_feature_cols, and the
+            # optional metal field below. Do not replace this named mapping by
+            # a positional slice unless the new file format has been explicitly
+            # checked and documented here.
+            candidate_id_col = 'Database number'
+            candidate_feature_cols = [f'X{i}' for i in range(20)]
+            candidate_required_cols = [candidate_id_col] + candidate_feature_cols
+            missing_candidate_cols = [
+                col for col in candidate_required_cols
+                if col not in data_array.columns
+            ]
+            if missing_candidate_cols:
+                raise ValueError(
+                    'Missing candidate DATA columns: {}'.format(
+                        ', '.join(missing_candidate_cols)
+                    )
+                )
+
+            # Only required candidate fields control row filtering. Optional
+            # metadata columns elsewhere in the workbook should not delete a
+            # valid candidate row merely because they are blank.
+            data_array = data_array.drop_nulls(subset=candidate_required_cols)
+            for row in data_array.iter_rows(named=True):
+                # Database number is the stable candidate name. Center metal is
+                # retained as optional metadata in the second output field;
+                # change this mapping if a future file defines another order or
+                # identifier field.
+                candidate_name = str(row[candidate_id_col])
+                candidate_metal = str(row.get('Center metal', ''))
+                data_lib_name.append([candidate_name, candidate_metal])
+                data_lib_value.append([
+                    float(row[col]) for col in candidate_feature_cols
+                ])
 
         setup_seed(best_parameters[args.model]['random_state'])
         processor = DataProcessor(seed=best_parameters[args.model]['random_state'])
