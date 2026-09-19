@@ -1,3 +1,24 @@
+# ========================= DATA TABLE MATCHING RULES =========================
+# This file reads the labeled training table only.  Do not assume that every
+# future Excel file has the same column order or the same metadata columns.
+#
+# Current labeled-table contract:
+#   - one header row, read by pandas.read_excel(..., header=0)
+#   - "Database number" is the sample name/identifier
+#   - "Y" is the supervised regression target
+#   - "X0" ... "X19" are the 20 descriptor columns used by the model
+#   - other columns (for example metal labels, X20+, energies, notes, or
+#     empty separator columns) are not training features in this reader
+#
+# For every new dataset, first inspect the header and explicitly update the
+# named-column mapping below.  Do not replace it with a positional slice such
+# as data[6:26].  A different file may place Y, the ID, or the descriptors at
+# different positions, and silently reading the wrong columns changes the
+# scientific meaning of the model without necessarily raising an error.
+# If the new table has a different target, ID, or feature definition, record
+# that mapping in the code and validate the required columns before training.
+# ============================================================================
+
 import torch, sys, math, scipy, random, json, xlrd, pandas, copy
 import numpy as np
 from torch.utils import data
@@ -23,7 +44,7 @@ class AADataset(Dataset):
         self.names = copy.deepcopy(dataset['names'])
 
     def __getitem__(self, idx):
-        return self.data_x[idx], self.data_y[idx], self.names[idx]
+        return self.data_x[idx], self.data_y[idx], str(self.names[idx][0])
 
     def __len__(self):
         return len(self.data_x)
@@ -31,6 +52,9 @@ class AADataset(Dataset):
 
 class DataProcessor():
     def __init__(self, seed=0) -> None:
+        # This is a machine-specific example path. Before running, confirm and
+        # update it to the local GPGB labeled workbook. The sheet and named
+        # columns below must be checked against that local file as well.
         self.data_file = '/media/sf_Projects/ORR/GPGB/data/2_base_model_data_Ni1.xlsx'
         self.labeled_data_sheet = 'DATA'
         self.data_x = []
@@ -40,17 +64,38 @@ class DataProcessor():
         self.read_labeled_data()
 
     def read_labeled_data(self):
-        # Panda 解析
+        # This reader is intentionally restricted to the labeled training
+        # table. Candidate/prediction tables are handled separately in
+        # main.py because their metadata and column layout may be different.
+        # Before using another file, verify its header and adjust the mapping
+        # below rather than assuming that the columns are in the same order.
         data_array = pandas.read_excel(
             self.data_file, sheet_name=self.labeled_data_sheet)
 
-        for row_index in range(1, data_array.shape[0]):
-            data = data_array.values[row_index]
+        # Keep the feature definition explicit. If a future dataset uses a
+        # different descriptor set or names, update this list deliberately and
+        # re-check the model input dimension before running any training.
+        feature_cols = [f'X{i}' for i in range(20)]
+        required_cols = ['Database number', 'Y'] + feature_cols
+        missing_cols = [col for col in required_cols if col not in data_array.columns]
+        if missing_cols:
+            raise ValueError(
+                'Missing required DATA columns: {}'.format(', '.join(missing_cols))
+            )
 
-            name = data[2]
-            y = float(data[5])
+        labeled_data = data_array[required_cols]
+        if labeled_data.isnull().any().any():
+            missing_rows = labeled_data.index[labeled_data.isnull().any(axis=1)].tolist()
+            raise ValueError(
+                'Missing values found in required DATA columns at rows: {}'.format(
+                    missing_rows
+                )
+            )
 
-            raw_x = [float(item) for item in data[6:26]]
+        for _, data in labeled_data.iterrows():
+            name = str(data['Database number'])
+            y = float(data['Y'])
+            raw_x = [float(data[col]) for col in feature_cols]
             # xgboost
             self.data_x.append(list(raw_x))
             self.data_y.append(y)
@@ -79,8 +124,8 @@ class DataProcessor():
         return dataset
 
     def split(dataset, j):
-        indices = [i for i in range(len(dataset['data_x']))]
-        random.shuffle(indices)
+        # indices = [i for i in range(len(dataset['data_x']))]
+        # random.shuffle(indices)
         # print("indices: ",indices)
         data1 = {}
         data2 = {}

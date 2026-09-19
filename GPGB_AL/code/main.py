@@ -55,7 +55,7 @@ def train_ml_model(train_dataset, test_dataset, new_dataset=None, model=None):
     mse_train_p = np.mean(np.square(np.abs([item[0] - item[1] for item in k_train_p])))
     names_train=[]
     for i in train_dataset['names']:
-        names_train.append(int(i[0]))
+        names_train.append(str(i[0]))
     data_y_train=[]
     for i in train_dataset['data_y']:
         data_y_train.append(i[0])
@@ -76,7 +76,7 @@ def train_ml_model(train_dataset, test_dataset, new_dataset=None, model=None):
 
     names_test=[]
     for i in test_dataset['names']:
-        names_test.append(int(i[0]))
+        names_test.append(str(i[0]))
     data_y=[]
     for i in test_dataset['data_y']:
         data_y.append(i[0])
@@ -323,7 +323,7 @@ def train_ann(dims, lr, batch_size, activation, epoch, train_dataset_all, seed):
                 y_true_p
             ])
             TRAIN_SHOW.append([
-                int(name[0][0]),
+                str(name[0]),
                 y_pred,
                 y_true[0],
             ])
@@ -350,7 +350,7 @@ def train_ann(dims, lr, batch_size, activation, epoch, train_dataset_all, seed):
             test_y.append(y_true)
             test_predict_y.append(y_pred)
             VAL_SHOW.append([
-                int(name[0][0]),
+                str(name[0]),
                 y_pred,
                 y_true[0],
             ])
@@ -415,7 +415,7 @@ def xgboost(train_x, test_x,best_parameters,random_seed):
     for i in range(len(modify_train_x)):
         train_compare.append([x_train_predicted[i], train_dataset['data_y'][i]])
         train_show.append([
-            int(train_dataset['names'][i][0]), x_train_predicted[i], train_dataset['data_y'][i][0]])
+            str(train_dataset['names'][i][0]), x_train_predicted[i], train_dataset['data_y'][i][0]])
         x_train_data.append(list(modify_train_x[i]))
     train_mse = np.mean(np.square(np.abs([item[0] - item[1] for item in train_compare])))
 
@@ -428,7 +428,7 @@ def xgboost(train_x, test_x,best_parameters,random_seed):
     for i in range(len(modify_test_x)):
         test_compare.append([x_test_predicted[i], test_dataset['data_y'][i]])
         test_show.append([
-            int(test_dataset['names'][i][0]), x_test_predicted[i], test_dataset['data_y'][i][0]])
+            str(test_dataset['names'][i][0]), x_test_predicted[i], test_dataset['data_y'][i][0]])
         x_test_data.append(list(modify_test_x[i]))
     test_mse = np.mean(np.square(np.abs([item[0] - item[1]
                                          for item in test_compare])))
@@ -482,13 +482,15 @@ def gpgb(train_x, test_x,exp_x_name,exp_x,best_parameters,n_component,gp_adjust_
 
     train_dataset=train_x.__dict__
     test_dataset=test_x.__dict__
-    new_train_data=np.array(list(train_dataset['data_x'])+list(test_dataset['data_x']))
-    new_label_data=np.array(list(train_dataset['data_y'])+list(test_dataset['data_y']))
     gp_seed =gp_adjust_random #best_parameters['gp_random_state']
     setup_seed(gp_seed)
     #build trainsform model
     modify_model = genetic.SymbolicTransformer(generations=4, parsimony_coefficient=0.005,n_components=n_component,function_set=('add', 'sub', 'mul', 'div','sqrt'))
-    modify_model.fit(new_train_data,new_label_data )
+    # Fit symbolic features on the training set only. Test labels must not
+    # influence feature discovery or any downstream model selection.
+    train_x_for_gp = np.asarray(train_dataset['data_x'])
+    train_y_for_gp = np.asarray(train_dataset['data_y']).ravel()
+    modify_model.fit(train_x_for_gp, train_y_for_gp)
     #transform x
     modify_train_x=modify_model.transform(train_dataset['data_x'])
     # print("modify_train_x.shape:",modify_train_x.shape)
@@ -510,10 +512,10 @@ def gpgb(train_x, test_x,exp_x_name,exp_x,best_parameters,n_component,gp_adjust_
     y_test_predict = []
     for i in range(len(modify_train_x)):
         train_show.append([
-            int(train_dataset['names'][i][0]), x_train_predicted[i], train_dataset['data_y'][i][0]])
+            str(train_dataset['names'][i][0]), x_train_predicted[i], train_dataset['data_y'][i][0]])
     for i in range(len(modify_test_x)):
         test_show.append([
-            int(test_dataset['names'][i][0]), x_test_predicted[i], test_dataset['data_y'][i][0]])
+            str(test_dataset['names'][i][0]), x_test_predicted[i], test_dataset['data_y'][i][0]])
     for i in range(len(train_show)):
         y_train.append(train_show[i][2])
         y_train_predict.append(train_show[i][1])
@@ -625,6 +627,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--model', type=str, default='gpgb')  # [ols, lasso, ridge, svr, rf, gpr, ann_1, ann_2, ann_3,xgboost,gpgb]
     parser.add_argument('--output_dir', type=str, default='data/results')
+    # The defaults below are machine-specific examples. Before running, confirm
+    # and update the local parameter file, candidate-data file, and output path.
     parser.add_argument('--model_params', type=str, default='/media/sf_Projects/ORR/GPGB/model_params.json')
     parser.add_argument('--train_data_num', type=int, default=200)
     parser.add_argument('--data_lib_path', type=str, default='/media/sf_Projects/ORR/GPGB/data/Data_collect_Ti.xlsx')
@@ -689,6 +693,17 @@ if __name__ == "__main__":
         if args.search_optimal_validation_data or args.enable_active_learning:
             data_array = pl.read_excel(
                 args.data_lib_path, sheet_name='DATA')
+            # IMPORTANT: data_lib_path is a candidate/prediction table, not
+            # the labeled training table read by DataProcessor.  Its current
+            # expected layout is [candidate name, order/metadata, X0 ... X19].
+            # Future candidate files may add metal labels, Y, source-file
+            # fields, or other columns.  Therefore, inspect the actual header
+            # and update these two mappings for each new file format:
+            #   data_lib_name  <- candidate identifier columns
+            #   data_lib_value <- exactly the 20 descriptor columns X0 ... X19
+            # Never pass Y, an ID, or another metadata column as a descriptor.
+            # Do not copy the training-table mapping here unless the schemas
+            # have been explicitly confirmed to be identical.
             # 2. Remove rows containing any null values.
             # By default, drop_nulls() removes rows containing any null value, equivalent to how="any".
             data_array = data_array.drop_nulls()

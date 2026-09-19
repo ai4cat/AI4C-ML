@@ -1,6 +1,8 @@
 import pandas as pd
 
-# File paths
+# File paths are machine-specific examples. Before running this diagnostic,
+# confirm and update all three paths for the local workbooks. Also verify their
+# headers before changing any column mapping below.
 file1_path = "/media/sf_Projects/ORR/GPGB/data/base_model_data.xlsx"
 file2_path = "/media/sf_Projects/ORR/GPGB/data/acitve_learning_data.xlsx"
 file3_path = "/media/sf_Projects/ORR/GPGB/data/Predict_model_Ce_processed_0308_rank_Z0_Z10.xlsx"
